@@ -34,7 +34,21 @@ function getApiError(data, fallbackMessage) {
 
   if (Array.isArray(data?.detail)) {
     return data.detail
-      .map((error) => error.msg.replace("Value error, ", ""))
+      .map((error) => {
+        const message = error.msg.replace("Value error, ", "");
+
+        if (message === "Field required") {
+          return "请填写所有必填项";
+        }
+        if (message.startsWith("String should have at most")) {
+          return "输入内容超过允许长度";
+        }
+        if (message.startsWith("String should have at least")) {
+          return "输入内容过短";
+        }
+
+        return message;
+      })
       .join(" ");
   }
 
@@ -73,7 +87,7 @@ function App() {
       const data = await response.json().catch(() => null);
 
       if (!response.ok) {
-        throw new Error(getApiError(data, "Could not load teachers."));
+        throw new Error(getApiError(data, "无法加载教师列表。"));
       }
 
       setTeachers(data);
@@ -82,7 +96,7 @@ function App() {
         type: "error",
         message:
           error instanceof TypeError
-            ? "Could not connect to FastAPI. Check that the backend is running."
+            ? "无法连接 FastAPI，请确认后端服务已经启动。"
             : error.message,
       });
     } finally {
@@ -98,7 +112,7 @@ function App() {
       const data = await response.json().catch(() => null);
 
       if (!response.ok) {
-        throw new Error(getApiError(data, "Could not load dashboard."));
+        throw new Error(getApiError(data, "无法加载数据看板。"));
       }
 
       setDashboard(data);
@@ -107,7 +121,7 @@ function App() {
         type: "error",
         message:
           error instanceof TypeError
-            ? "Could not connect to FastAPI. Check that the backend is running."
+            ? "无法连接 FastAPI，请确认后端服务已经启动。"
             : error.message,
       });
     } finally {
@@ -163,7 +177,7 @@ function App() {
     });
     setFeedback({
       type: "info",
-      message: `Editing teacher "${teacher.name}".`,
+      message: `正在编辑教师“${teacher.name}”。`,
     });
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -171,7 +185,7 @@ function App() {
   function handleCancelEdit() {
     setEditingId(null);
     setForm(EMPTY_FORM);
-    setFeedback({ type: "info", message: "Edit cancelled." });
+    setFeedback({ type: "info", message: "已取消编辑。" });
   }
 
   async function handleSubmit(event) {
@@ -184,7 +198,7 @@ function App() {
 
     setFeedback({
       type: "info",
-      message: isEditing ? "Updating teacher..." : "Saving teacher...",
+      message: isEditing ? "正在更新教师信息……" : "正在保存教师信息……",
     });
 
     try {
@@ -205,7 +219,7 @@ function App() {
         throw new Error(
           getApiError(
             data,
-            `Could not ${isEditing ? "update" : "create"} teacher.`,
+            isEditing ? "无法更新教师信息。" : "无法添加教师。",
           ),
         );
       }
@@ -215,14 +229,14 @@ function App() {
       await refreshData();
       setFeedback({
         type: "success",
-        message: `Teacher "${data.name}" was ${isEditing ? "updated" : "created"}.`,
+        message: `教师“${data.name}”${isEditing ? "更新" : "添加"}成功。`,
       });
     } catch (error) {
       setFeedback({
         type: "error",
         message:
           error instanceof TypeError
-            ? "Could not connect to FastAPI."
+            ? "无法连接 FastAPI。"
             : error.message,
       });
     }
@@ -230,7 +244,7 @@ function App() {
 
   async function handleDelete(teacher) {
     const confirmed = window.confirm(
-      `Are you sure you want to delete "${teacher.name}"?`,
+      `确定要删除教师“${teacher.name}”吗？`,
     );
 
     if (!confirmed) {
@@ -239,7 +253,7 @@ function App() {
 
     setFeedback({
       type: "info",
-      message: `Deleting teacher "${teacher.name}"...`,
+      message: `正在删除教师“${teacher.name}”……`,
     });
 
     try {
@@ -249,7 +263,7 @@ function App() {
       const data = await response.json().catch(() => null);
 
       if (!response.ok) {
-        throw new Error(getApiError(data, "Could not delete teacher."));
+        throw new Error(getApiError(data, "无法删除教师。"));
       }
 
       if (editingId === teacher.id) {
@@ -260,14 +274,14 @@ function App() {
       await refreshData();
       setFeedback({
         type: "success",
-        message: `Teacher "${teacher.name}" was deleted.`,
+        message: `教师“${teacher.name}”删除成功。`,
       });
     } catch (error) {
       setFeedback({
         type: "error",
         message:
           error instanceof TypeError
-            ? "Could not connect to FastAPI."
+            ? "无法连接 FastAPI。"
             : error.message,
       });
     }
@@ -278,10 +292,9 @@ function App() {
       <header className="page-header">
         <div>
           <p className="eyebrow">FASTAPI · REACT · POSTGRESQL</p>
-          <h1>Teacher Management System</h1>
+          <h1>教师管理系统</h1>
           <p className="subtitle">
-            Manage teacher records, search the directory, and view a simple
-            staffing overview.
+            管理教师档案、搜索教师名录，并查看简明的师资概览。
           </p>
         </div>
       </header>
@@ -295,31 +308,31 @@ function App() {
       <section className="panel">
         <div className="section-heading">
           <div>
-            <p className="section-label">Overview</p>
-            <h2>Dashboard</h2>
+            <p className="section-label">概览</p>
+            <h2>数据看板</h2>
           </div>
-          {dashboardLoading && <span className="muted">Refreshing...</span>}
+          {dashboardLoading && <span className="muted">刷新中……</span>}
         </div>
 
         <div className="stats-grid">
           <article className="stat-card">
-            <span>Total Teachers</span>
+            <span>教师总数</span>
             <strong>{dashboard.total_teachers}</strong>
           </article>
           <article className="stat-card active-stat">
-            <span>Active Teachers</span>
+            <span>在职教师</span>
             <strong>{dashboard.active_teachers}</strong>
           </article>
           <article className="stat-card inactive-stat">
-            <span>Inactive Teachers</span>
+            <span>非在职教师</span>
             <strong>{dashboard.inactive_teachers}</strong>
           </article>
         </div>
 
         <div className="subject-summary">
-          <h3>Teachers by Subject</h3>
+          <h3>各学科教师人数</h3>
           {dashboard.teachers_by_subject.length === 0 ? (
-            <p className="muted">No subject data yet.</p>
+            <p className="muted">暂无学科数据。</p>
           ) : (
             <div className="subject-list">
               {dashboard.teachers_by_subject.map((item) => (
@@ -336,17 +349,17 @@ function App() {
       <section className="panel">
         <div className="section-heading">
           <div>
-            <p className="section-label">Teacher form</p>
-            <h2>{editingId === null ? "Add Teacher" : "Edit Teacher"}</h2>
+            <p className="section-label">教师信息</p>
+            <h2>{editingId === null ? "添加教师" : "编辑教师"}</h2>
           </div>
           {editingId !== null && (
-            <span className="editing-badge">Editing ID {editingId}</span>
+            <span className="editing-badge">正在编辑 ID {editingId}</span>
           )}
         </div>
 
         <form className="teacher-form" onSubmit={handleSubmit}>
           <label>
-            Name
+            姓名
             <input
               name="name"
               value={form.name}
@@ -357,7 +370,7 @@ function App() {
           </label>
 
           <label>
-            Email
+            邮箱
             <input
               name="email"
               type="email"
@@ -369,7 +382,7 @@ function App() {
           </label>
 
           <label>
-            Subject
+            授课科目
             <input
               name="subject"
               value={form.subject}
@@ -380,19 +393,19 @@ function App() {
           </label>
 
           <label>
-            Status
+            状态
             <select
               name="status"
               value={form.status}
               onChange={handleChange}
             >
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
+              <option value="active">在职</option>
+              <option value="inactive">非在职</option>
             </select>
           </label>
 
           <label>
-            Phone <span className="muted">(optional)</span>
+            电话 <span className="muted">（选填）</span>
             <input
               name="phone"
               value={form.phone}
@@ -403,7 +416,7 @@ function App() {
 
           <div className="form-actions full-width">
             <button className="primary-button" type="submit">
-              {editingId === null ? "Add Teacher" : "Save Changes"}
+              {editingId === null ? "添加教师" : "保存修改"}
             </button>
 
             {editingId !== null && (
@@ -412,7 +425,7 @@ function App() {
                 type="button"
                 onClick={handleCancelEdit}
               >
-                Cancel
+                取消
               </button>
             )}
           </div>
@@ -422,44 +435,44 @@ function App() {
       <section className="panel">
         <div className="section-heading">
           <div>
-            <p className="section-label">Directory</p>
-            <h2>Teachers</h2>
+            <p className="section-label">教师名录</p>
+            <h2>教师列表</h2>
           </div>
-          <span className="result-count">{teachers.length} shown</span>
+          <span className="result-count">当前显示 {teachers.length} 位</span>
         </div>
 
         <form className="filter-form" onSubmit={handleFilterSubmit}>
           <label>
-            Search name or email
+            搜索姓名或邮箱
             <input
               name="search"
               value={filters.search}
               onChange={handleFilterChange}
-              placeholder="e.g. alice"
+              placeholder="例如：张老师"
             />
           </label>
 
           <label>
-            Status
+            状态
             <select
               name="status"
               value={filters.status}
               onChange={handleFilterChange}
             >
-              <option value="">All statuses</option>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
+              <option value="">全部状态</option>
+              <option value="active">在职</option>
+              <option value="inactive">非在职</option>
             </select>
           </label>
 
           <label>
-            Subject
+            授课科目
             <select
               name="subject"
               value={filters.subject}
               onChange={handleFilterChange}
             >
-              <option value="">All subjects</option>
+              <option value="">全部学科</option>
               {dashboard.teachers_by_subject.map((item) => (
                 <option value={item.subject} key={item.subject}>
                   {item.subject}
@@ -470,34 +483,34 @@ function App() {
 
           <div className="filter-actions">
             <button className="primary-button" type="submit">
-              Apply Filters
+              应用筛选
             </button>
             <button
               className="secondary-button"
               type="button"
               onClick={handleClearFilters}
             >
-              Clear
+              清除
             </button>
           </div>
         </form>
 
         {loading ? (
-          <p className="empty-state">Loading teachers...</p>
+          <p className="empty-state">正在加载教师列表……</p>
         ) : teachers.length === 0 ? (
-          <p className="empty-state">No teachers match these filters.</p>
+          <p className="empty-state">没有教师符合当前筛选条件。</p>
         ) : (
           <div className="table-wrapper">
             <table>
               <thead>
                 <tr>
-                  <th>Name</th>
-                  <th>Email</th>
-                  <th>Subject</th>
-                  <th>Status</th>
-                  <th>Phone</th>
-                  <th>Created</th>
-                  <th>Actions</th>
+                  <th>姓名</th>
+                  <th>邮箱</th>
+                  <th>授课科目</th>
+                  <th>状态</th>
+                  <th>电话</th>
+                  <th>创建时间</th>
+                  <th>操作</th>
                 </tr>
               </thead>
               <tbody>
@@ -508,12 +521,12 @@ function App() {
                     <td>{teacher.subject}</td>
                     <td>
                       <span className={`status-badge ${teacher.status}`}>
-                        {teacher.status}
+                        {teacher.status === "active" ? "在职" : "非在职"}
                       </span>
                     </td>
                     <td>{teacher.phone || "—"}</td>
                     <td>
-                      {new Date(teacher.created_at).toLocaleDateString()}
+                      {new Date(teacher.created_at).toLocaleDateString("zh-CN")}
                     </td>
                     <td>
                       <div className="table-actions">
@@ -522,14 +535,14 @@ function App() {
                           type="button"
                           onClick={() => handleEdit(teacher)}
                         >
-                          Edit
+                          编辑
                         </button>
                         <button
                           className="small-button danger-button"
                           type="button"
                           onClick={() => handleDelete(teacher)}
                         >
-                          Delete
+                          删除
                         </button>
                       </div>
                     </td>
