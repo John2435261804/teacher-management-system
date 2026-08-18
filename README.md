@@ -1,5 +1,8 @@
 # Teacher Management System
-
+这里添加了一些信息，并且创建了分支，之后在仓库中看看，能不能看到改变
+希望能学会git，这样后面学习新项目才更好吗
+现在有了gpt老师，真是学习的好机会，
+加油加油 小张张
 ## Project Overview
 
 Teacher Management System is a small full-stack CRUD application built as a
